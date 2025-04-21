@@ -9,7 +9,7 @@ import { FiUpload, FiFileText } from 'react-icons/fi';
 
 export const UploadPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setCurrentAnalysis, setAnalysisProgress, addToHistory } = useAnalysisStore();
+  const { setCurrentAnalysis, setAnalysisProgress, addToHistory, setCurrentMethod, analysisProgress } = useAnalysisStore();
   
   const [files, setFiles] = useState<UploadedFiles>({
     video: null,
@@ -46,20 +46,18 @@ export const UploadPage: React.FC = () => {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisProgress(0);
+    setCurrentMethod(metadata.method);
     
     try {
-      // Navigate to analysis page before starting the analysis
       navigate('/analysis');
 
-      // Start progress simulation
       const progressInterval = setInterval(() => {
-        setAnalysisProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 5;
-        });
+        const currentProgress = useAnalysisStore.getState().analysisProgress;
+        if (currentProgress >= 90) {
+          clearInterval(progressInterval);
+        } else {
+          setAnalysisProgress(currentProgress + 5);
+        }
       }, 1000);
 
       const result = await analyzeClass(
@@ -77,6 +75,7 @@ export const UploadPage: React.FC = () => {
       setError(errorMessage);
       setAnalysisProgress(0);
       setIsAnalyzing(false);
+      setCurrentMethod(null);
       navigate('/upload');
     }
   };

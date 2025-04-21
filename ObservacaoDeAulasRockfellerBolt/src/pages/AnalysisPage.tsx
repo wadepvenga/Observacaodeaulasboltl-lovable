@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EvaluationResults } from '../components/EvaluationResults';
 import { useAnalysisStore } from '../store/analysisStore';
@@ -7,7 +7,13 @@ import { jsPDF } from 'jspdf';
 
 export const AnalysisPage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentAnalysis, analysisProgress } = useAnalysisStore();
+  const { currentAnalysis, analysisProgress, currentMethod } = useAnalysisStore();
+
+  useEffect(() => {
+    if (analysisProgress >= 100 && !currentAnalysis) {
+      navigate('/upload');
+    }
+  }, [currentAnalysis, analysisProgress, navigate]);
 
   const handleExport = () => {
     if (!currentAnalysis) return;
@@ -208,8 +214,8 @@ export const AnalysisPage: React.FC = () => {
     );
   }
 
-  if (!currentAnalysis) {
-    navigate('/upload');
+  if (!currentAnalysis || !currentMethod) {
+    console.error("AnalysisPage: Renderizando sem currentAnalysis ou currentMethod após progresso 100.");
     return null;
   }
 
@@ -227,7 +233,7 @@ export const AnalysisPage: React.FC = () => {
       <EvaluationResults
         result={currentAnalysis}
         onChecklistItemToggle={() => {}}
-        method={currentAnalysis.method}
+        method={currentMethod}
       />
     </main>
   );

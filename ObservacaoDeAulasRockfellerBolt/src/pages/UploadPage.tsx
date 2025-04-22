@@ -64,10 +64,12 @@ export const UploadPage: React.FC = () => {
 
     try {
       // --- Upload do Vídeo ---
+      const videoFile = files.video;
+      if (!videoFile) {
+        throw new Error("Video file is missing unexpectedly.");
+      }
       console.log('Iniciando upload do vídeo...');
       setAnalysisProgress(15); // Atualiza progresso
-      const videoFile = files.video!;
-      // Cria um nome único para evitar conflitos
       const videoFileName = `videos/${Date.now()}_${videoFile.name.replace(/\s+/g, '_')}`; 
       const { data: videoData, error: videoError } = await supabase.storage
         .from(bucketName) // Usa o nome do bucket
@@ -86,10 +88,12 @@ export const UploadPage: React.FC = () => {
       setAnalysisProgress(35); // Atualiza progresso
 
       // --- Upload do Plano de Aula ---
+      const lessonPlanFile = files.lessonPlan;
+      if (!lessonPlanFile) {
+        throw new Error("Lesson plan file is missing unexpectedly.");
+      }
       console.log('Iniciando upload do plano de aula...');
       setAnalysisProgress(40); // Atualiza progresso
-      const lessonPlanFile = files.lessonPlan!;
-      // Cria um nome único
       const lessonPlanFileName = `lesson_plans/${Date.now()}_${lessonPlanFile.name.replace(/\s+/g, '_')}`;
       const { data: lpData, error: lpError } = await supabase.storage
         .from(bucketName) // Usa o nome do bucket

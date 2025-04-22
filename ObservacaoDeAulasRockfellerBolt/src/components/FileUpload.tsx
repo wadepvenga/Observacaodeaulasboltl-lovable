@@ -21,7 +21,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     accept: { [acceptedFileTypes]: [] },
     maxFiles: 1,
     onDrop: (acceptedFiles) => {
-      if (acceptedFiles.length > 0) {
+      if (acceptedFiles.length > 0 && acceptedFiles[0]) {
         onFileUpload(acceptedFiles[0]);
       }
     },
@@ -49,7 +49,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       >
         <input {...getInputProps()} />
         <div className="p-8">
-          {acceptedFiles.length > 0 ? (
+          {acceptedFiles.length > 0 && acceptedFiles[0] ? (
             <div className="flex items-center space-x-4">
               <div className="p-3 bg-green-100 rounded-lg">
                 <FiCheck className="w-6 h-6 text-green-600" />
@@ -61,7 +61,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onFileUpload(acceptedFiles[0]);
+                  if (acceptedFiles[0]) {
+                    onFileUpload(acceptedFiles[0]);
+                  }
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >

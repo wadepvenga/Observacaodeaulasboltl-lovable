@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { setApiKey, testConnection } from '../services/gemini';
+import { testConnection } from '../services/gemini';
 import { logger } from '../services/logger';
 
 interface ApiKeyInputProps {
@@ -23,7 +23,6 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onSubmit }) => {
     setAvailableModels([]);
 
     try {
-      setApiKey(apiKey);
       const result = await testConnection();
       logger.info('Connection test result', result);
       setAvailableModels(result.availableModels || []);

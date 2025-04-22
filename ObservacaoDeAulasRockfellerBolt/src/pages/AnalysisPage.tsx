@@ -92,7 +92,7 @@ export const AnalysisPage: React.FC = () => {
     // Grammar Points
     checkPageSpace(40);
     addText('Grammar Points');
-    currentAnalysis.summary.grammarPoints.forEach(point => {
+    currentAnalysis.summary.grammarPoints.forEach((point: string) => {
       checkPageSpace(10);
       addText(`• ${point}`);
     });
@@ -100,7 +100,7 @@ export const AnalysisPage: React.FC = () => {
     // Vocabulary
     checkPageSpace(40);
     addText('Vocabulary');
-    currentAnalysis.summary.vocabulary.forEach(word => {
+    currentAnalysis.summary.vocabulary.forEach((word: string) => {
       checkPageSpace(10);
       addText(`• ${word}`);
     });
@@ -112,7 +112,7 @@ export const AnalysisPage: React.FC = () => {
       currentAnalysis.summary.lessonPlanAdherence,
       contentWidth
     );
-    adherenceLines.forEach(line => {
+    adherenceLines.forEach((line: string) => {
       checkPageSpace(10);
       addText(line);
     });
@@ -141,7 +141,7 @@ export const AnalysisPage: React.FC = () => {
 
       if (item.comment) {
         const commentLines = doc.splitTextToSize(item.comment, contentWidth - 10);
-        commentLines.forEach(line => {
+        commentLines.forEach((line: string) => {
           checkPageSpace(10);
           doc.text(line, margin + 5, yPos);
           yPos += 5;
@@ -161,7 +161,7 @@ export const AnalysisPage: React.FC = () => {
       currentAnalysis.transcription,
       contentWidth
     );
-    transcriptionLines.forEach(line => {
+    transcriptionLines.forEach((line: string) => {
       checkPageSpace(10);
       doc.setFontSize(10);
       doc.text(line, margin, yPos);

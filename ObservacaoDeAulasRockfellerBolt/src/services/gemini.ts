@@ -1,4 +1,4 @@
-import { ClassMetadata } from '../types';
+import { ClassMetadata, ADULTS_CHECKLIST, TEENS_CHECKLIST, EvaluationResult } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -29,15 +29,23 @@ export async function testConnection() {
 }
 
 export async function analyzeClass(
-  video: File,
-  lessonPlan: File,
+  videoPath: string,
+  lessonPlanPath: string,
   metadata: ClassMetadata
-) {
+): Promise<EvaluationResult> {
+  let response: Response | undefined;
   try {
-    const videoBase64 = await fileToBase64(video);
-    const lessonPlanBase64 = await fileToBase64(lessonPlan);
+    const checklistDefinition = metadata.method === 'Adults' ? ADULTS_CHECKLIST 
+                             : metadata.method === 'Teens' ? TEENS_CHECKLIST
+                             : [];
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini`, {
+    const itemsToEvaluate = checklistDefinition.flatMap(category => 
+        category.items.map(item => ({ id: `${category.id}-${item.id}`, text: item.text }))
+    );
+
+    console.log("Frontend: Enviando requisição para analyzeClass com:", { videoPath, lessonPlanPath, metadata, itemsToEvaluate });
+
+    response = await fetch(`${SUPABASE_URL}/functions/v1/gemini`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,48 +54,43 @@ export async function analyzeClass(
       body: JSON.stringify({
         action: 'analyze',
         data: {
-          video: {
-            type: video.type,
-            data: videoBase64
-          },
-          lessonPlan: {
-            type: lessonPlan.type,
-            data: lessonPlanBase64
-          },
-          metadata
+          videoPath: videoPath,
+          lessonPlanPath: lessonPlanPath,
+          metadata: metadata,
+          checklistItemsToEvaluate: itemsToEvaluate 
         }
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to analyze class');
+      let errorDetails = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorDetails = JSON.stringify(errorData);
+      } catch (jsonError) {
+        try {
+          errorDetails = await response.text();
+        } catch (textError) {
+          errorDetails = `Could not parse error response body. Status: ${response.status} ${response.statusText}`;
+        }
+      }
+      console.error("Frontend: Erro recebido da função Supabase:", errorDetails);
+      throw new Error(`Analysis failed: ${errorDetails}`);
     }
 
     const result = await response.json();
     if (!result || !result.summary || !result.checklist || !result.transcription) {
-      throw new Error('Invalid analysis result received');
+      console.error("Frontend: Estrutura inválida recebida da função Supabase", result);
+      throw new Error('Invalid analysis result structure received from Supabase function');
     }
 
-    return result;
+    console.log("Frontend: Resultado da análise recebido e validado.");
+    return result as EvaluationResult;
   } catch (error) {
-    console.error('Analysis error:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to analyze class. Please try again later.');
+    console.error('Frontend: Erro no bloco catch de analyzeClass:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(String(error) || 'Unknown error occurred during analysis');
   }
-}
-
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      } else {
-        reject(new Error('Failed to convert file to base64'));
-      }
-    };
-    reader.onerror = (error) => reject(error);
-  });
 }

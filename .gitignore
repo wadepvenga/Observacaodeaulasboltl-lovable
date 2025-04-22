@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+
+# Supabase (se não for parte do deploy principal)
+# supabase/
+
+# Vercel
+.vercel/
+
+# Arquivos de ambiente (se não versionados intencionalmente)
+# .env* 

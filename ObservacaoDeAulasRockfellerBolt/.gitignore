@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+
+# Vite
+.vite/
+dist/
+
+# Supabase temp files
+supabase/.temp/
+
+# Arquivos de ambiente
+.env*
+!.env.example 

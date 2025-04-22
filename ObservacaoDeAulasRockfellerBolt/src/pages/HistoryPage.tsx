@@ -8,8 +8,11 @@ export const HistoryPage: React.FC = () => {
   const { analysisHistory, setCurrentAnalysis } = useAnalysisStore();
 
   const handleViewAnalysis = (index: number) => {
-    setCurrentAnalysis(analysisHistory[index]);
-    navigate('/analysis');
+    const analysis = analysisHistory[index];
+    if (analysis) {
+      setCurrentAnalysis(analysis);
+      navigate('/analysis');
+    }
   };
 
   return (

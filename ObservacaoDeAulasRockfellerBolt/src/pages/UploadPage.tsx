@@ -1,3 +1,6 @@
+import { supabase } from '../lib/supabaseClient'; // Importa o cliente
+// Abaixo dos seus outros imports, como useState, useNavigate, etc.
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload';
@@ -33,50 +36,133 @@ export const UploadPage: React.FC = () => {
   };
 
   const handleAnalyze = async () => {
+    // --- Validações Iniciais ---
     if (!files.video || !files.lessonPlan) {
-      setError('Please upload all required files');
+      setError('Por favor, envie todos os arquivos necessários (Vídeo e Plano de Aula).');
       return;
     }
-
     if (!metadata.teacherName || !metadata.book || !metadata.lesson) {
-      setError('Please fill in all class information fields');
+      setError('Por favor, preencha todas as informações da aula.');
       return;
     }
+    // Verifica se o cliente Supabase está pronto
+    if (!supabase) {
+       setError('Cliente Supabase não inicializado. Verifique o console e o arquivo .env.');
+       console.error('Supabase client is null. Check initialization in src/lib/supabaseClient.ts and .env variables.');
+       return;
+    }
 
-    setIsAnalyzing(true);
-    setError(null);
-    setAnalysisProgress(0);
-    setCurrentMethod(metadata.method);
-    
+    // --- Início do Processo ---
+    setIsAnalyzing(true); // Mostra "Analisando..."
+    setError(null); // Limpa erros anteriores
+    setAnalysisProgress(10); // Progresso inicial (upload)
+    setCurrentMethod(metadata.method); // Guarda o método no store
+
+    let videoPath: string | null = null;
+    let lessonPlanPath: string | null = null;
+    const bucketName = 'uploads'; // <-- MUDE AQUI se o nome do seu bucket for diferente!
+
     try {
-      navigate('/analysis');
+      // --- Upload do Vídeo ---
+      console.log('Iniciando upload do vídeo...');
+      setAnalysisProgress(15); // Atualiza progresso
+      const videoFile = files.video!;
+      // Cria um nome único para evitar conflitos
+      const videoFileName = `videos/${Date.now()}_${videoFile.name.replace(/\s+/g, '_')}`; 
+      const { data: videoData, error: videoError } = await supabase.storage
+        .from(bucketName) // Usa o nome do bucket
+        .upload(videoFileName, videoFile, {
+          cacheControl: '3600', // Cache por 1 hora
+          upsert: false, // Não sobrescrever se já existir
+        });
 
+      if (videoError) {
+        console.error("Erro no upload do vídeo:", videoError);
+        throw new Error(`Falha no upload do vídeo: ${videoError.message}`);
+      }
+      videoPath = videoData?.path; // Guarda o caminho retornado pelo Supabase
+      if (!videoPath) throw new Error("Caminho do vídeo não retornado após upload.");
+      console.log('Upload do vídeo concluído:', videoPath);
+      setAnalysisProgress(35); // Atualiza progresso
+
+      // --- Upload do Plano de Aula ---
+      console.log('Iniciando upload do plano de aula...');
+      setAnalysisProgress(40); // Atualiza progresso
+      const lessonPlanFile = files.lessonPlan!;
+      // Cria um nome único
+      const lessonPlanFileName = `lesson_plans/${Date.now()}_${lessonPlanFile.name.replace(/\s+/g, '_')}`;
+      const { data: lpData, error: lpError } = await supabase.storage
+        .from(bucketName) // Usa o nome do bucket
+        .upload(lessonPlanFileName, lessonPlanFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+      
+      if (lpError) {
+        console.error("Erro no upload do plano de aula:", lpError);
+        throw new Error(`Falha no upload do plano de aula: ${lpError.message}`);
+      }
+      lessonPlanPath = lpData?.path; // Guarda o caminho retornado
+      if (!lessonPlanPath) throw new Error("Caminho do plano de aula não retornado após upload.");
+      console.log('Upload do plano de aula concluído:', lessonPlanPath);
+      setAnalysisProgress(50); // Atualiza progresso (metade do caminho)
+
+      // --- Chamada para a Função de Análise (Passando os Caminhos) ---
+      navigate('/analysis'); // Navega para a página de análise ANTES da chamada longa
+
+      // Simulação de progresso DURANTE a análise (que agora acontece no backend)
       const progressInterval = setInterval(() => {
-        const currentProgress = useAnalysisStore.getState().analysisProgress;
-        if (currentProgress >= 90) {
-          clearInterval(progressInterval);
-        } else {
-          setAnalysisProgress(currentProgress + 5);
-        }
-      }, 1000);
+          const currentProgress = useAnalysisStore.getState().analysisProgress;
+          if (currentProgress >= 95) { // Simula até 95%, 100% vem no sucesso
+            clearInterval(progressInterval);
+          } else {
+            setAnalysisProgress(currentProgress + 5); // Incrementa mais rápido
+          }
+      }, 800); // Intervalo um pouco mais rápido
 
+      console.log('Chamando a função analyzeClass com os caminhos:', { videoPath, lessonPlanPath });
+      
+      // IMPORTANTE: A função analyzeClass em gemini.ts e a função no Supabase
+      // ainda precisam ser ajustadas para TRABALHAR COM os caminhos/URLs em vez de base64.
+      // Por enquanto, vamos enviar os caminhos.
       const result = await analyzeClass(
-        files.video,
-        files.lessonPlan,
+        videoPath,       // Envia o CAMINHO do vídeo no Storage
+        lessonPlanPath,  // Envia o CAMINHO do plano de aula no Storage
         metadata
       );
 
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
-      setCurrentAnalysis(result);
-      addToHistory(result);
+      // --- Sucesso ---
+      clearInterval(progressInterval); // Para a simulação
+      console.log('Análise retornada com sucesso pela função.');
+      setAnalysisProgress(100); // Análise completa
+      setCurrentAnalysis(result); // Guarda o resultado no store
+      addToHistory(result); // Adiciona ao histórico
+
+      // Opcional: Limpeza dos arquivos após sucesso (descomente se desejar)
+      // console.log('Limpando arquivos do storage após análise bem-sucedida...');
+      // await supabase.storage.from(bucketName).remove([videoPath, lessonPlanPath]);
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze class. Please try again.';
-      setError(errorMessage);
-      setAnalysisProgress(0);
-      setIsAnalyzing(false);
-      setCurrentMethod(null);
-      navigate('/upload');
+      // --- Tratamento de Erro ---
+      console.error('Erro durante o processo de upload ou análise:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Falha no upload ou análise. Tente novamente.';
+      setError(errorMessage); // Mostra erro na UI
+      setAnalysisProgress(0); // Reseta progresso
+      setIsAnalyzing(false); // Libera o botão
+      setCurrentMethod(null); // Limpa método no store
+      navigate('/upload'); // Volta para a página de upload
+
+      // Opcional: Tentativa de limpeza em caso de erro (descomente se desejar)
+      // const pathsToRemove = [videoPath, lessonPlanPath].filter(p => p !== null) as string[];
+      // if (supabase && pathsToRemove.length > 0) {
+      //   console.log('Tentando limpar arquivos do storage devido a erro...');
+      //   try {
+      //      await supabase.storage.from(bucketName).remove(pathsToRemove);
+      //      console.log('Arquivos de erro limpos do storage.');
+      //   } catch (cleanupError) {
+      //      console.error('Erro ao tentar limpar arquivos do storage após falha:', cleanupError);
+      //   }
+      // }
     }
   };
 
